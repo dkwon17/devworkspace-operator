@@ -39,7 +39,7 @@ func (e *FatalError) Unwrap() error {
 }
 
 func GetAutoMountResources(client k8sclient.Client, namespace string) ([]v1alpha1.PodAdditions, []corev1.EnvFromSource, error) {
-	gitCMPodAdditions, err := getDevWorkspaceGitConfig(client, namespace)
+	gitCMPodAdditions, err := provisionGitConfiguration(client, namespace)
 	if err != nil {
 		return nil, nil, err
 	}
