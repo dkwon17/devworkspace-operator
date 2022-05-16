@@ -20,6 +20,7 @@ import (
 	"github.com/devfile/devworkspace-operator/pkg/config"
 	"github.com/devfile/devworkspace-operator/pkg/constants"
 	"github.com/devfile/devworkspace-operator/pkg/infrastructure"
+	"fmt"
 )
 
 var routeAnnotations = func(endpointName string) map[string]string {
@@ -82,5 +83,6 @@ func (s *BasicSolver) GetExposedEndpoints(
 }
 
 func (s *BasicSolver) WorkspaceStopped(routing *controllerv1alpha1.DevWorkspaceRouting, workspaceMeta DevWorkspaceMetadata) error {
+	fmt.Print("\n\n\nBasicSolver: from WorkspaceStopped()\n\n\n")
 	return nil
 }
