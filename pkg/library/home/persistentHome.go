@@ -44,6 +44,10 @@ func AddPersistentHomeVolume(workspace *common.DevWorkspaceWithConfig) (*v1alpha
 		Path: constants.HomeUserDirectory,
 	}
 
+	if workspace.Config.Workspace.PersistUserHome.DisableInitContainer == nil || !*workspace.Config.Workspace.PersistUserHome.DisableInitContainer {
+		addInitContainer(dwTemplateSpecCopy, workspace.Config.Workspace.PersistUserHome.InitContainer)
+	}
+
 	dwTemplateSpecCopy.Components = append(dwTemplateSpecCopy.Components, homeVolume)
 	for _, component := range dwTemplateSpecCopy.Components {
 		if component.Container == nil {
@@ -94,4 +98,65 @@ func NeedsPersistentHomeDirectory(workspace *common.DevWorkspaceWithConfig) bool
 func storageStrategySupportsPersistentHome(workspace *common.DevWorkspaceWithConfig) bool {
 	storageClass := workspace.Spec.Template.Attributes.GetString(constants.DevWorkspaceStorageTypeAttribute, nil)
 	return storageClass != constants.EphemeralStorageClassType
+}
+
+func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initContainerFromConfig *v1alpha2.Container) {
+
+	initContainerComponent := v1alpha2.Component{
+		Name: constants.HomeInitComponentName,
+	}
+
+	initContainer := initContainerFromConfig
+
+	if initContainer == nil {
+		initContainer = inferInitContainer(dwTemplateSpec)
+	}
+
+	if initContainer == nil {
+		return
+	}
+
+	initContainerComponent.ComponentUnion = v1alpha2.ComponentUnion{
+		Container: &v1alpha2.ContainerComponent{
+			Container: *initContainer,
+		},
+	}
+
+	dwTemplateSpec.Components = append(dwTemplateSpec.Components, initContainerComponent)
+	dwTemplateSpec.Commands = append(dwTemplateSpec.Commands, v1alpha2.Command{
+		Id: constants.HomeInitEventId,
+		CommandUnion: v1alpha2.CommandUnion{
+			Apply: &v1alpha2.ApplyCommand{
+				Component: constants.HomeInitComponentName,
+			},
+		},
+	})
+	dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
+}
+
+func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1alpha2.Container {
+	var firstUnflattenedComponent v1alpha2.Component
+	for _, component := range dwTemplateSpec.Components {
+		if component.Container == nil {
+			continue
+		}
+
+		var err error
+		component.Attributes.Get(constants.MergedContributionsAttribute, &err)
+		if err == nil {
+			firstUnflattenedComponent = component
+			break
+		}
+	}
+
+	if firstUnflattenedComponent.Name != "" {
+		image := firstUnflattenedComponent.Container.Image
+		command := []string{"/bin/sh", "-c", "/entrypoint.sh || true"}
+
+		return &v1alpha2.Container{
+			Image:   image,
+			Command: command,
+		}
+	}
+	return nil
 }
