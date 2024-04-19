@@ -135,24 +135,52 @@ func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initCon
 }
 
 func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1alpha2.Container {
-	var firstUnflattenedComponent v1alpha2.Component
+	var nonImportedComponent v1alpha2.Component
 	for _, component := range dwTemplateSpec.Components {
 		if component.Container == nil {
 			continue
 		}
 
-		var err error
-		component.Attributes.Get(constants.MergedContributionsAttribute, &err)
-		if err == nil {
-			firstUnflattenedComponent = component
+		pluginSource := component.Attributes.GetString(constants.PluginSourceAttribute, nil)
+		if pluginSource == "" || pluginSource == "parent" {
+			// First, non-imported container component is selected
+			nonImportedComponent = component
 			break
 		}
 	}
 
-	if firstUnflattenedComponent.Name != "" {
-		image := firstUnflattenedComponent.Container.Image
-		command := []string{"/bin/sh", "-c", "/entrypoint.sh || true"}
+	initScript := `#!/bin/sh
 
+if [ -n "$HOME_SETUP_SCRIPT" ] && [ -f "$HOME_SETUP_SCRIPT" ]; then
+	source "$HOME_SETUP_SCRIPT"
+	exit 0
+else
+	echo 'No home setup script found at $HOME_SETUP_SCRIPT'
+fi
+
+echo "Checking for stow command"
+STOW_COMPLETE=/home/user/.stow_completed
+if command -v stow &> /dev/null; then
+
+	if  [ ! -f $STOW_COMPLETE ]; then
+		echo "Running stow command"
+		stow . -t /home/user/ -d /home/tooling/ --no-folding --adopt -v 2 > /tmp/stow.log 2>&1
+		cp /home/tooling/.viminfo /home/user/.viminfo
+		cp /home/tooling/.bashrc /home/user/.bashrc
+		cp /home/tooling/.bash_profile /home/user/.bash_profile
+		touch $STOW_COMPLETE
+	else
+		echo "Stow command already run"
+	fi
+
+else
+	echo "Stow command not found"
+fi
+`
+
+	if nonImportedComponent.Name != "" {
+		image := nonImportedComponent.Container.Image
+		command := []string{"bash", "-c", "(" + initScript + ") || true"} // ensure the init container command does not fail
 		return &v1alpha2.Container{
 			Image:   image,
 			Command: command,
