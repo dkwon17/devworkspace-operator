@@ -143,7 +143,7 @@ func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1al
 
 		pluginSource := component.Attributes.GetString(constants.PluginSourceAttribute, nil)
 		if pluginSource == "" || pluginSource == "parent" {
-			// First, non-imported container component is selected
+			// First non-imported container component is selected
 			nonImportedComponent = component
 			break
 		}
@@ -165,9 +165,9 @@ if command -v stow &> /dev/null; then
 	if  [ ! -f $STOW_COMPLETE ]; then
 		echo "Running stow command"
 		stow . -t /home/user/ -d /home/tooling/ --no-folding --adopt -v 2 > /tmp/stow.log 2>&1
-		cp /home/tooling/.viminfo /home/user/.viminfo
-		cp /home/tooling/.bashrc /home/user/.bashrc
-		cp /home/tooling/.bash_profile /home/user/.bash_profile
+		cp -n /home/tooling/.viminfo /home/user/.viminfo
+		cp -n /home/tooling/.bashrc /home/user/.bashrc
+		cp -n /home/tooling/.bash_profile /home/user/.bash_profile
 		touch $STOW_COMPLETE
 	else
 		echo "Stow command already run"
