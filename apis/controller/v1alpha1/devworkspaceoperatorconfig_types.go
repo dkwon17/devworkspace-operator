@@ -154,11 +154,9 @@ type PersistentHomeConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// Determines whether the init container that initializes the persistent home directory should be disabled.
 	// When the `/home/user` directory is persisted, the init container is used to initialize the directory before
-	// the workspace starts. If set to true, the init container will not be used.
-	DisableInitContainer *bool `json:"initContainerEnabled,omitempty"`
-	// The init container that initializes the persistent home directory. If not specified, the init container
-	// will be inferred by the DevWorkspace Operator by selecting the first non-imported container component.
-	InitContainer *dw.Container `json:"initContainer,omitempty"`
+	// the workspace starts. If set to true, the init container will not be created.
+	// Enabled by default.
+	DisableInitContainer *bool `json:"disableInitContainer,omitempty"`
 }
 
 type Proxy struct {

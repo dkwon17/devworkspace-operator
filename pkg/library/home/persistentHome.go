@@ -27,6 +27,24 @@ import (
 	"github.com/devfile/devworkspace-operator/pkg/constants"
 )
 
+const initScript = `(echo "Checking for stow command"
+STOW_COMPLETE=/home/user/.stow_completed
+if command -v stow &> /dev/null; then
+  if  [ ! -f $STOW_COMPLETE ]; then
+    echo "Running stow command"
+    stow . -t /home/user/ -d /home/tooling/ --no-folding -v 2 > /home/user/.stow.log 2>&1
+    cp -n /home/tooling/.viminfo /home/user/.viminfo
+    cp -n /home/tooling/.bashrc /home/user/.bashrc
+    cp -n /home/tooling/.bash_profile /home/user/.bash_profile
+    touch $STOW_COMPLETE
+  else
+    echo "Stow command already run. If you wish to re-run it, delete $STOW_COMPLETE from the persistent volume and restart the workspace."
+  fi
+else
+  echo "Stow command not found"
+fi) || true
+`
+
 // Returns a modified copy of the given DevWorkspace's Template Spec which contains an additional
 // Devfile volume 'persistentHome' that is mounted  to `/home/user/` for every container component defined in the DevWorkspace.
 // An error is returned if the addition of the 'persistentHome' volume would result
@@ -45,7 +63,7 @@ func AddPersistentHomeVolume(workspace *common.DevWorkspaceWithConfig) (*v1alpha
 	}
 
 	if workspace.Config.Workspace.PersistUserHome.DisableInitContainer == nil || !*workspace.Config.Workspace.PersistUserHome.DisableInitContainer {
-		addInitContainer(dwTemplateSpecCopy, workspace.Config.Workspace.PersistUserHome.InitContainer)
+		addInitContainer(dwTemplateSpecCopy)
 	}
 
 	dwTemplateSpecCopy.Components = append(dwTemplateSpecCopy.Components, homeVolume)
@@ -100,38 +118,82 @@ func storageStrategySupportsPersistentHome(workspace *common.DevWorkspaceWithCon
 	return storageClass != constants.EphemeralStorageClassType
 }
 
-func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initContainerFromConfig *v1alpha2.Container) {
+func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) {
 
-	initContainerComponent := v1alpha2.Component{
-		Name: constants.HomeInitComponentName,
-	}
-
-	initContainer := initContainerFromConfig
-
+	initContainer := inferInitContainer(dwTemplateSpec)
 	if initContainer == nil {
-		initContainer = inferInitContainer(dwTemplateSpec)
-	}
-
-	if initContainer == nil {
+		// if cannot infer initcontainer, fail quietly
 		return
 	}
 
-	initContainerComponent.ComponentUnion = v1alpha2.ComponentUnion{
-		Container: &v1alpha2.ContainerComponent{
-			Container: *initContainer,
-		},
+	if !initComponentExists(dwTemplateSpec) {
+		addInitContainerComponent(dwTemplateSpec, initContainer)
 	}
 
-	dwTemplateSpec.Components = append(dwTemplateSpec.Components, initContainerComponent)
-	dwTemplateSpec.Commands = append(dwTemplateSpec.Commands, v1alpha2.Command{
-		Id: constants.HomeInitEventId,
-		CommandUnion: v1alpha2.CommandUnion{
-			Apply: &v1alpha2.ApplyCommand{
-				Component: constants.HomeInitComponentName,
+	if dwTemplateSpec.Commands == nil {
+		dwTemplateSpec.Commands = []v1alpha2.Command{}
+	}
+
+	if dwTemplateSpec.Events == nil {
+		dwTemplateSpec.Events = &v1alpha2.Events{}
+	}
+
+	if !initCommandExists(dwTemplateSpec) {
+		dwTemplateSpec.Commands = append(dwTemplateSpec.Commands, v1alpha2.Command{
+			Id: constants.HomeInitEventId,
+			CommandUnion: v1alpha2.CommandUnion{
+				Apply: &v1alpha2.ApplyCommand{
+					Component: constants.HomeInitComponentName,
+				},
+			},
+		})
+	}
+
+	if !initEventExists(dwTemplateSpec) {
+		dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
+	}
+}
+
+func initComponentExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
+	for _, component := range dwTemplateSpec.Components {
+		if component.Name == constants.HomeInitComponentName {
+			return true
+		}
+	}
+	return false
+
+}
+
+func initCommandExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
+	for _, command := range dwTemplateSpec.Commands {
+		if command.Id == constants.HomeInitEventId {
+			return true
+		}
+	}
+	return false
+}
+
+func initEventExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
+	for _, event := range dwTemplateSpec.Events.PreStart {
+		if event == constants.HomeInitEventId {
+			return true
+		}
+	}
+	return false
+
+}
+
+func addInitContainerComponent(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initContainer *v1alpha2.Container) {
+
+	initComponent := v1alpha2.Component{
+		Name: constants.HomeInitComponentName,
+		ComponentUnion: v1alpha2.ComponentUnion{
+			Container: &v1alpha2.ContainerComponent{
+				Container: *initContainer,
 			},
 		},
-	})
-	dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
+	}
+	dwTemplateSpec.Components = append(dwTemplateSpec.Components, initComponent)
 }
 
 func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1alpha2.Container {
@@ -149,41 +211,12 @@ func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1al
 		}
 	}
 
-	initScript := `#!/bin/sh
-
-if [ -n "$HOME_SETUP_SCRIPT" ] && [ -f "$HOME_SETUP_SCRIPT" ]; then
-	source "$HOME_SETUP_SCRIPT"
-	exit 0
-else
-	echo 'No home setup script found at $HOME_SETUP_SCRIPT'
-fi
-
-echo "Checking for stow command"
-STOW_COMPLETE=/home/user/.stow_completed
-if command -v stow &> /dev/null; then
-
-	if  [ ! -f $STOW_COMPLETE ]; then
-		echo "Running stow command"
-		stow . -t /home/user/ -d /home/tooling/ --no-folding --adopt -v 2 > /tmp/stow.log 2>&1
-		cp -n /home/tooling/.viminfo /home/user/.viminfo
-		cp -n /home/tooling/.bashrc /home/user/.bashrc
-		cp -n /home/tooling/.bash_profile /home/user/.bash_profile
-		touch $STOW_COMPLETE
-	else
-		echo "Stow command already run"
-	fi
-
-else
-	echo "Stow command not found"
-fi
-`
-
 	if nonImportedComponent.Name != "" {
 		image := nonImportedComponent.Container.Image
-		command := []string{"bash", "-c", "(" + initScript + ") || true"} // ensure the init container command does not fail
 		return &v1alpha2.Container{
 			Image:   image,
-			Command: command,
+			Command: []string{"/bin/sh", "-c"},
+			Args:    []string{initScript},
 		}
 	}
 	return nil
