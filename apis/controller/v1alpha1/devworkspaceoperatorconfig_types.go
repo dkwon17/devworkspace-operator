@@ -155,10 +155,15 @@ type PersistentHomeConfig struct {
 	// Determines whether the init container that initializes the persistent home directory should be disabled.
 	// When the `/home/user` directory is persisted, the init container is used to initialize the directory before
 	// the workspace starts. If set to true, the init container will not be used.
-	DisableInitContainer *bool `json:"initContainerEnabled,omitempty"`
+	// Enabled by default.
+	DisableInitContainer *bool `json:"disableInitContainer,omitempty"`
 	// The init container that initializes the persistent home directory. If not specified, the init container
 	// will be inferred by the DevWorkspace Operator by selecting the first non-imported container component.
-	InitContainer *dw.Container `json:"initContainer,omitempty"`
+	// When the persistent home volume is first mounted to the workspace, the volume may be empty which results in an
+	// empty /home/user directory.
+	// The use of an init container allows the volume to be populated with the necessary files before the workspace.
+	// The persistent home volume mount for the init container are automatically added by the DevWorkspace Operator.
+	InitContainer *dw.ContainerPluginOverride `json:"initContainer,omitempty"`
 }
 
 type Proxy struct {

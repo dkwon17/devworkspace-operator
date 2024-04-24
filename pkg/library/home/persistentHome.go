@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
+	"github.com/devfile/api/v2/pkg/utils/overriding"
 	devfilevalidation "github.com/devfile/api/v2/pkg/validation"
 	"github.com/devfile/devworkspace-operator/pkg/provision/storage"
 	"k8s.io/utils/pointer"
@@ -26,6 +27,34 @@ import (
 	"github.com/devfile/devworkspace-operator/pkg/common"
 	"github.com/devfile/devworkspace-operator/pkg/constants"
 )
+
+const initScript = `#!/bin/sh
+
+if [ -n "$HOME_SETUP_SCRIPT" ] && [ -f "$HOME_SETUP_SCRIPT" ]; then
+	echo "Running $HOME_SETUP_SCRIPT"
+	source "$HOME_SETUP_SCRIPT"
+	exit 0
+fi
+
+echo "Checking for stow command"
+STOW_COMPLETE=/home/user/.stow_completed
+if command -v stow &> /dev/null; then
+
+	if  [ ! -f $STOW_COMPLETE ]; then
+		echo "Running stow command"
+		stow . -t /home/user/ -d /home/tooling/ --no-folding -v 2 > /home/user/.stow.log 2>&1
+		cp -n /home/tooling/.viminfo /home/user/.viminfo
+		cp -n /home/tooling/.bashrc /home/user/.bashrc
+		cp -n /home/tooling/.bash_profile /home/user/.bash_profile
+		touch $STOW_COMPLETE
+	else
+		echo "Stow command already run. If you wish to re-run it, delete $STOW_COMPLETE from the persistent volume and restart the workspace."
+	fi
+
+else
+	echo "Stow command not found"
+fi
+`
 
 // Returns a modified copy of the given DevWorkspace's Template Spec which contains an additional
 // Devfile volume 'persistentHome' that is mounted  to `/home/user/` for every container component defined in the DevWorkspace.
@@ -45,7 +74,10 @@ func AddPersistentHomeVolume(workspace *common.DevWorkspaceWithConfig) (*v1alpha
 	}
 
 	if workspace.Config.Workspace.PersistUserHome.DisableInitContainer == nil || !*workspace.Config.Workspace.PersistUserHome.DisableInitContainer {
-		addInitContainer(dwTemplateSpecCopy, workspace.Config.Workspace.PersistUserHome.InitContainer)
+		err := addInitContainer(dwTemplateSpecCopy, workspace.Config.Workspace.PersistUserHome.InitContainer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add persistent user home init container to DevWorkspace: %w", err)
+		}
 	}
 
 	dwTemplateSpecCopy.Components = append(dwTemplateSpecCopy.Components, homeVolume)
@@ -100,29 +132,34 @@ func storageStrategySupportsPersistentHome(workspace *common.DevWorkspaceWithCon
 	return storageClass != constants.EphemeralStorageClassType
 }
 
-func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initContainerFromConfig *v1alpha2.Container) {
+func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initContainerFromConfig *v1alpha2.ContainerPluginOverride) error {
 
-	initContainerComponent := v1alpha2.Component{
+	initComponent := v1alpha2.Component{
 		Name: constants.HomeInitComponentName,
-	}
-
-	initContainer := initContainerFromConfig
-
-	if initContainer == nil {
-		initContainer = inferInitContainer(dwTemplateSpec)
-	}
-
-	if initContainer == nil {
-		return
-	}
-
-	initContainerComponent.ComponentUnion = v1alpha2.ComponentUnion{
-		Container: &v1alpha2.ContainerComponent{
-			Container: *initContainer,
+		ComponentUnion: v1alpha2.ComponentUnion{
+			Container: &v1alpha2.ContainerComponent{
+				Container: *inferInitContainer(dwTemplateSpec),
+			},
 		},
 	}
 
-	dwTemplateSpec.Components = append(dwTemplateSpec.Components, initContainerComponent)
+	if initContainerFromConfig != nil {
+		mergedInitComponent, err := mergeInitContainerFromConfig(&initComponent, &v1alpha2.ComponentPluginOverride{
+			Name: constants.HomeInitComponentName,
+			ComponentUnionPluginOverride: v1alpha2.ComponentUnionPluginOverride{
+				Container: &v1alpha2.ContainerComponentPluginOverride{
+					ContainerPluginOverride: *initContainerFromConfig,
+				},
+			},
+		})
+
+		if err != nil {
+			return err
+		}
+		initComponent = *mergedInitComponent
+	}
+
+	dwTemplateSpec.Components = append(dwTemplateSpec.Components, initComponent)
 	dwTemplateSpec.Commands = append(dwTemplateSpec.Commands, v1alpha2.Command{
 		Id: constants.HomeInitEventId,
 		CommandUnion: v1alpha2.CommandUnion{
@@ -132,6 +169,8 @@ func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initCon
 		},
 	})
 	dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
+
+	return nil
 }
 
 func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1alpha2.Container {
@@ -149,35 +188,6 @@ func inferInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) *v1al
 		}
 	}
 
-	initScript := `#!/bin/sh
-
-if [ -n "$HOME_SETUP_SCRIPT" ] && [ -f "$HOME_SETUP_SCRIPT" ]; then
-	source "$HOME_SETUP_SCRIPT"
-	exit 0
-else
-	echo 'No home setup script found at $HOME_SETUP_SCRIPT'
-fi
-
-echo "Checking for stow command"
-STOW_COMPLETE=/home/user/.stow_completed
-if command -v stow &> /dev/null; then
-
-	if  [ ! -f $STOW_COMPLETE ]; then
-		echo "Running stow command"
-		stow . -t /home/user/ -d /home/tooling/ --no-folding --adopt -v 2 > /tmp/stow.log 2>&1
-		cp -n /home/tooling/.viminfo /home/user/.viminfo
-		cp -n /home/tooling/.bashrc /home/user/.bashrc
-		cp -n /home/tooling/.bash_profile /home/user/.bash_profile
-		touch $STOW_COMPLETE
-	else
-		echo "Stow command already run"
-	fi
-
-else
-	echo "Stow command not found"
-fi
-`
-
 	if nonImportedComponent.Name != "" {
 		image := nonImportedComponent.Container.Image
 		command := []string{"bash", "-c", "(" + initScript + ") || true"} // ensure the init container command does not fail
@@ -187,4 +197,22 @@ fi
 		}
 	}
 	return nil
+}
+
+func mergeInitContainerFromConfig(firstComponent *v1alpha2.Component, secondComponent *v1alpha2.ComponentPluginOverride) (*v1alpha2.Component, error) {
+
+	mergedSpecContent, err := overriding.OverrideDevWorkspaceTemplateSpec(&v1alpha2.DevWorkspaceTemplateSpecContent{
+		Components: []v1alpha2.Component{*firstComponent},
+	},
+		v1alpha2.PluginOverrides{
+			Components: []v1alpha2.ComponentPluginOverride{
+				*secondComponent,
+			},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mergedSpecContent.Components[0], nil
 }
