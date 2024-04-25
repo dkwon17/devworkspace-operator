@@ -338,6 +338,13 @@ func mergeConfig(from, to *controller.OperatorConfiguration) {
 			if from.Workspace.PersistUserHome.Enabled != nil {
 				to.Workspace.PersistUserHome.Enabled = from.Workspace.PersistUserHome.Enabled
 			}
+			if from.Workspace.PersistUserHome.DisableInitContainer != nil {
+				to.Workspace.PersistUserHome.DisableInitContainer = from.Workspace.PersistUserHome.DisableInitContainer
+			}
+			if from.Workspace.PersistUserHome.InitContainer != nil {
+				initContainerCopy := from.Workspace.PersistUserHome.InitContainer.DeepCopy()
+				to.Workspace.PersistUserHome.InitContainer = initContainerCopy
+			}
 		}
 		if from.Workspace.DefaultTemplate != nil {
 			templateSpecContentCopy := from.Workspace.DefaultTemplate.DeepCopy()
@@ -521,6 +528,12 @@ func GetCurrentConfigString(currConfig *controller.OperatorConfiguration) string
 		if workspace.PersistUserHome != nil {
 			if workspace.PersistUserHome.Enabled != nil && *workspace.PersistUserHome.Enabled != *defaultConfig.Workspace.PersistUserHome.Enabled {
 				config = append(config, fmt.Sprintf("workspace.persistUserHome.enabled=%t", *workspace.PersistUserHome.Enabled))
+			}
+			if workspace.PersistUserHome.DisableInitContainer != nil && *workspace.PersistUserHome.DisableInitContainer != *defaultConfig.Workspace.PersistUserHome.DisableInitContainer {
+				config = append(config, fmt.Sprintf("workspace.persistUserHome.disableInitContainer=%t", *workspace.PersistUserHome.DisableInitContainer))
+			}
+			if workspace.PersistUserHome.InitContainer != nil {
+				config = append(config, "workspace.persistUserHome.initContainer is set")
 			}
 		}
 		if !reflect.DeepEqual(workspace.PodSecurityContext, defaultConfig.Workspace.PodSecurityContext) {
