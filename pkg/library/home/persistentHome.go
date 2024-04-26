@@ -118,12 +118,12 @@ func storageStrategySupportsPersistentHome(workspace *common.DevWorkspaceWithCon
 	return storageClass != constants.EphemeralStorageClassType
 }
 
-func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) {
+func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) error {
 
 	initContainer := inferInitContainer(dwTemplateSpec)
 	if initContainer == nil {
 		// if cannot infer initcontainer, fail quietly
-		return
+		return fmt.Errorf("cannot infer initcontainer for home persistence setup")
 	}
 
 	if !initComponentExists(dwTemplateSpec) {
@@ -152,6 +152,8 @@ func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) {
 	if !initEventExists(dwTemplateSpec) {
 		dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
 	}
+
+	return nil
 }
 
 func initComponentExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
