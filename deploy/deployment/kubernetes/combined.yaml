@@ -2486,7 +2486,8 @@ spec:
                           `/home/user` directory is persisted, the init container
                           is used to initialize the directory before the workspace
                           starts. If set to true, the init container will not be created.
-                          Enabled by default.
+                          This field is not used if the `workspace.persistUserHome.enabled`
+                          field is set to false. Enabled by default.
                         type: boolean
                       enabled:
                         description: Determines whether the `/home/user/` directory
