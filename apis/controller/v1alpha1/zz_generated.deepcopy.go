@@ -22,7 +22,7 @@ package v1alpha1
 
 import (
 	"github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -380,6 +380,11 @@ func (in *PersistentHomeConfig) DeepCopyInto(out *PersistentHomeConfig) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
+		*out = new(bool)
+		**out = **in
+	}
+	if in.DisableInitContainer != nil {
+		in, out := &in.DisableInitContainer, &out.DisableInitContainer
 		*out = new(bool)
 		**out = **in
 	}
