@@ -63,7 +63,10 @@ func AddPersistentHomeVolume(workspace *common.DevWorkspaceWithConfig) (*v1alpha
 	}
 
 	if workspace.Config.Workspace.PersistUserHome.DisableInitContainer == nil || !*workspace.Config.Workspace.PersistUserHome.DisableInitContainer {
-		addInitContainer(dwTemplateSpecCopy)
+		err := addInitContainer(dwTemplateSpecCopy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add init container for home persistence setup: %w", err)
+		}
 	}
 
 	dwTemplateSpecCopy.Components = append(dwTemplateSpecCopy.Components, homeVolume)
@@ -120,15 +123,24 @@ func storageStrategySupportsPersistentHome(workspace *common.DevWorkspaceWithCon
 
 func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) error {
 
+	if initComponentExists(dwTemplateSpec) {
+		return fmt.Errorf("component named %s already exists in the devworkspace", constants.HomeInitComponentName)
+	}
+
+	if initCommandExists(dwTemplateSpec) {
+		return fmt.Errorf("command with id %s already exists in the devworkspace", constants.HomeInitEventId)
+	}
+
+	if initEventExists(dwTemplateSpec) {
+		return fmt.Errorf("event with id %s already exists in the devworkspace", constants.HomeInitEventId)
+	}
+
 	initContainer := inferInitContainer(dwTemplateSpec)
 	if initContainer == nil {
-		// if cannot infer initcontainer, fail quietly
 		return fmt.Errorf("cannot infer initcontainer for home persistence setup")
 	}
 
-	if !initComponentExists(dwTemplateSpec) {
-		addInitContainerComponent(dwTemplateSpec, initContainer)
-	}
+	addInitContainerComponent(dwTemplateSpec, initContainer)
 
 	if dwTemplateSpec.Commands == nil {
 		dwTemplateSpec.Commands = []v1alpha2.Command{}
@@ -138,25 +150,24 @@ func addInitContainer(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) error {
 		dwTemplateSpec.Events = &v1alpha2.Events{}
 	}
 
-	if !initCommandExists(dwTemplateSpec) {
-		dwTemplateSpec.Commands = append(dwTemplateSpec.Commands, v1alpha2.Command{
-			Id: constants.HomeInitEventId,
-			CommandUnion: v1alpha2.CommandUnion{
-				Apply: &v1alpha2.ApplyCommand{
-					Component: constants.HomeInitComponentName,
-				},
+	dwTemplateSpec.Commands = append(dwTemplateSpec.Commands, v1alpha2.Command{
+		Id: constants.HomeInitEventId,
+		CommandUnion: v1alpha2.CommandUnion{
+			Apply: &v1alpha2.ApplyCommand{
+				Component: constants.HomeInitComponentName,
 			},
-		})
-	}
+		},
+	})
 
-	if !initEventExists(dwTemplateSpec) {
-		dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
-	}
+	dwTemplateSpec.Events.PreStart = append(dwTemplateSpec.Events.PreStart, constants.HomeInitEventId)
 
 	return nil
 }
 
 func initComponentExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
+	if dwTemplateSpec.Components == nil {
+		return false
+	}
 	for _, component := range dwTemplateSpec.Components {
 		if component.Name == constants.HomeInitComponentName {
 			return true
@@ -167,6 +178,9 @@ func initComponentExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool
 }
 
 func initCommandExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
+	if dwTemplateSpec.Commands == nil {
+		return false
+	}
 	for _, command := range dwTemplateSpec.Commands {
 		if command.Id == constants.HomeInitEventId {
 			return true
@@ -176,6 +190,9 @@ func initCommandExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
 }
 
 func initEventExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
+	if dwTemplateSpec.Events == nil {
+		return false
+	}
 	for _, event := range dwTemplateSpec.Events.PreStart {
 		if event == constants.HomeInitEventId {
 			return true
@@ -186,7 +203,6 @@ func initEventExists(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec) bool {
 }
 
 func addInitContainerComponent(dwTemplateSpec *v1alpha2.DevWorkspaceTemplateSpec, initContainer *v1alpha2.Container) {
-
 	initComponent := v1alpha2.Component{
 		Name: constants.HomeInitComponentName,
 		ComponentUnion: v1alpha2.ComponentUnion{
