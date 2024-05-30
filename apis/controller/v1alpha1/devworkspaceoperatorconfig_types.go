@@ -147,6 +147,10 @@ type WorkspaceConfig struct {
 	// the value "0" should be used. By default, the memory limit is 128Mi and the memory request is 64Mi.
 	// No CPU limit or request is added by default.
 	DefaultContainerResources *corev1.ResourceRequirements `json:"defaultContainerResources,omitempty"`
+	// Annotations defines the metadata.annotations DevWorkspaces. If there is a conflict between
+	// an annotation in this field and a preexisiting annotation in the DevWorkspace, the annotation
+	// in the DevWorkspace will take precedence.
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,12,rep,name=annotations"`
 }
 
 type PersistentHomeConfig struct {

@@ -22,7 +22,7 @@ package v1alpha1
 
 import (
 	"github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -688,6 +688,13 @@ func (in *WorkspaceConfig) DeepCopyInto(out *WorkspaceConfig) {
 		in, out := &in.DefaultContainerResources, &out.DefaultContainerResources
 		*out = new(v1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 }
 

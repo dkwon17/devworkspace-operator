@@ -110,6 +110,14 @@ spec:
                 description: Workspace defines configuration options related to how
                   DevWorkspaces are managed
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations defines the metadata.annotations DevWorkspaces.
+                      If there is a conflict between an annotation in this field and
+                      a preexisiting annotation in the DevWorkspace, the annotation
+                      in the DevWorkspace will take precedence.
+                    type: object
                   cleanupOnStop:
                     description: CleanupOnStop governs how the Operator handles stopped
                       DevWorkspaces. If set to true, additional resources associated
