@@ -197,6 +197,7 @@ func getSpecDeployment(
 						constants.DevWorkspaceIDLabel:   workspace.Status.DevWorkspaceId,
 						constants.DevWorkspaceNameLabel: workspace.Name,
 					},
+					Annotations: workspace.Config.Workspace.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					InitContainers:                podAdditions.InitContainers,
