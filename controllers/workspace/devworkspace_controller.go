@@ -50,6 +50,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -336,6 +337,21 @@ func (r *DevWorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Env:       env.GetEnvironmentVariablesForProjectClone(workspace),
 		Resources: workspace.Config.Workspace.ProjectCloneConfig.Resources,
 	}
+
+	if projectCloneOptions.Resources.Limits.Cpu() == nil {
+		limitRanges := &corev1.LimitRangeList{}
+		listOptions := &client.ListOptions{
+			Namespace: req.NamespacedName.Namespace,
+		}
+		err = r.List(ctx, limitRanges, listOptions)
+		if err != nil && !k8sErrors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+		if limitRanges.Items != nil && len(limitRanges.Items) > 0 {
+			projectCloneOptions.Resources.Limits[corev1.ResourceCPU] = resource.MustParse("1000m")
+		}
+	}
+
 	if workspace.Config.Workspace.ProjectCloneConfig.ImagePullPolicy != "" {
 		projectCloneOptions.PullPolicy = config.Workspace.ProjectCloneConfig.ImagePullPolicy
 	} else {

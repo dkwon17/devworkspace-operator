@@ -60,7 +60,6 @@ var defaultConfig = &v1alpha1.OperatorConfiguration{
 			Resources: &corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceMemory: resource.MustParse("1Gi"),
-					corev1.ResourceCPU:    resource.MustParse("1000m"),
 				},
 				Requests: corev1.ResourceList{
 					corev1.ResourceMemory: resource.MustParse("128Mi"),
