@@ -493,7 +493,15 @@ func (r *DevWorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	serverReady, serverStatusCode, err := checkServerStatus(clusterWorkspace)
 	if err != nil {
 		return reconcile.Result{}, err
+
 	}
+
+	if shouldReturn, reconcileResult, reconcileErr := r.checkDWError(workspace, err, "Error checking server status", metrics.DetermineProvisioningFailureReason(err.Error()), reqLogger, &reconcileStatus); shouldReturn {
+		reqLogger.Info("Waiting for health check endpoint to succeed")
+		reconcileStatus.setConditionFalse(conditions.HealthCheckSuccess, "Waiting for health check endpoint to succeed")
+		return reconcileResult, reconcileErr
+	}
+
 	if !serverReady {
 		reqLogger.Info("Main URL server not ready", "status-code", serverStatusCode)
 		reconcileStatus.setConditionFalse(dw.DevWorkspaceReady, "Waiting for editor to start")

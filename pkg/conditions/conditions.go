@@ -27,6 +27,7 @@ const (
 	StorageReady         dw.DevWorkspaceConditionType = "StorageReady"
 	KubeComponentsReady  dw.DevWorkspaceConditionType = "KubernetesComponentsProvisioned"
 	DeploymentReady      dw.DevWorkspaceConditionType = "DeploymentReady"
+	HealthCheckSuccess   dw.DevWorkspaceConditionType = "HealthCheckSuccess"
 	DevWorkspaceWarning  dw.DevWorkspaceConditionType = "DevWorkspaceWarning"
 )
 
