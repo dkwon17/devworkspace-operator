@@ -460,7 +460,7 @@ func (r *DevWorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		reconcileStatus.setConditionTrue(dw.DevWorkspaceServiceAccountReady, "DevWorkspace serviceaccount ready")
 	}
 
-	pullSecretPodAdditions, err := wsprovision.PullSecrets(clusterAPI, serviceAcctName, workspace.GetNamespace())
+	pullSecretPodAdditions, err := wsprovision.PullSecrets(clusterAPI, serviceAcctName, workspace.GetNamespace(), reqLogger)
 	if shouldReturn, reconcileResult, reconcileErr := r.checkDWError(workspace, err, "Error getting DevWorkspace image pull secrets", metrics.ReasonInfrastructureFailure, reqLogger, &reconcileStatus); shouldReturn {
 		reconcileStatus.setConditionFalse(conditions.PullSecretsReady, "Waiting for DevWorkspace pull secrets")
 		return reconcileResult, reconcileErr
