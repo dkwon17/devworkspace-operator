@@ -25,11 +25,13 @@ import (
 	dw "github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
 	"github.com/devfile/devworkspace-operator/pkg/common"
 	"github.com/devfile/devworkspace-operator/pkg/dwerrors"
+	"github.com/devfile/devworkspace-operator/pkg/infrastructure"
 	"github.com/devfile/devworkspace-operator/pkg/provision/sync"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -124,6 +126,59 @@ func TestUseCommonStorageProvisionerForPerUserStorageClass(t *testing.T) {
 			return
 		}
 		assert.Equal(t, &CommonStorageProvisioner{}, storageProvisioner, "Per-user storage class should use the common storage provisioner")
+	})
+}
+
+func TestCleanup(t *testing.T) {
+	test := loadTestCaseOrPanic(t, "testdata/common-storage/per-user-alias.yaml")
+	infrastructure.InitializeForTesting(infrastructure.OpenShiftv4)
+	t.Run(test.Name, func(t *testing.T) {
+		testNamespace := "test-namespace"
+
+		namespace := &corev1.Namespace{}
+		namespace.Name = testNamespace
+
+		// sanity check that file is read correctly.
+		assert.NotNil(t, test.Input.Workspace, "Input does not define workspace")
+		workspace := &dw.DevWorkspace{}
+		workspace.Spec.Template = *test.Input.Workspace
+		workspace.Namespace = testNamespace
+		storageProvisioner, err := GetProvisioner(getDevWorkspaceWithConfig(workspace))
+		if !assert.NoError(t, err, "Should not return error") {
+			return
+		}
+
+		secondWorkspace := &dw.DevWorkspace{}
+		secondWorkspace.Namespace = testNamespace
+		secondWorkspace.Spec.Template = *test.Input.Workspace
+
+		commonPVC, err := getPVCSpec("claim-devworkspace", testNamespace, nil, resource.MustParse("10Gi"), nil)
+		if err != nil {
+			t.Fatalf("Failure during setup: %s", err)
+		}
+		commonPVC.Status.Phase = corev1.ClaimBound
+
+		clusterAPI := sync.ClusterAPI{
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(secondWorkspace, commonPVC, namespace).Build(),
+			Logger: zap.New(),
+			Scheme: scheme,
+		}
+
+		err = storageProvisioner.CleanupWorkspaceStorage(getDevWorkspaceWithConfig(workspace), clusterAPI)
+
+		expectedMessage := "v1.Job cleanup- is not ready: Created object"
+		assert.EqualError(t, err, expectedMessage)
+
+		retryError, ok := err.(*dwerrors.RetryError)
+		if assert.True(t, ok, "Expected error should be of type *dwerrors.RetryError") {
+			notInSyncError, ok := retryError.Unwrap().(*sync.NotInSyncError)
+			if assert.True(t, ok, "Expected error should be of type *sync.NotInSyncError") {
+				cleanupJob, ok := notInSyncError.Object.(*batchv1.Job)
+				if assert.True(t, ok, "Expected object should be of type *batchv1.Job") {
+					assert.Nil(t, cleanupJob.Spec.Template.Spec.Affinity.NodeAffinity)
+				}
+			}
+		}
 	})
 }
 
