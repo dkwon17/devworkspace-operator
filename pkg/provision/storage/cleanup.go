@@ -47,12 +47,13 @@ const (
 )
 
 var (
-	cleanupJobCompletions      = int32(1)
-	cleanupJobBackoffLimit     = int32(3)
-	pvcCleanupPodMemoryLimit   = resource.MustParse(constants.PVCCleanupPodMemoryLimit)
-	pvcCleanupPodMemoryRequest = resource.MustParse(constants.PVCCleanupPodMemoryRequest)
-	pvcCleanupPodCPULimit      = resource.MustParse(constants.PVCCleanupPodCPULimit)
-	pvcCleanupPodCPURequest    = resource.MustParse(constants.PVCCleanupPodCPURequest)
+	cleanupJobCompletions           = int32(1)
+	cleanupJobBackoffLimit          = int32(3)
+	cleanupJobActiveDeadlineSeconds = int64(180)
+	pvcCleanupPodMemoryLimit        = resource.MustParse(constants.PVCCleanupPodMemoryLimit)
+	pvcCleanupPodMemoryRequest      = resource.MustParse(constants.PVCCleanupPodMemoryRequest)
+	pvcCleanupPodCPULimit           = resource.MustParse(constants.PVCCleanupPodCPULimit)
+	pvcCleanupPodCPURequest         = resource.MustParse(constants.PVCCleanupPodCPURequest)
 )
 
 func runCommonPVCCleanupJob(workspace *common.DevWorkspaceWithConfig, clusterAPI sync.ClusterAPI) error {
@@ -152,8 +153,9 @@ func getSpecCommonPVCCleanupJob(workspace *common.DevWorkspaceWithConfig, cluste
 			Labels:    jobLabels,
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  &cleanupJobCompletions,
-			BackoffLimit: &cleanupJobBackoffLimit,
+			Completions:           &cleanupJobCompletions,
+			BackoffLimit:          &cleanupJobBackoffLimit,
+			ActiveDeadlineSeconds: &cleanupJobActiveDeadlineSeconds,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: jobLabels,
@@ -276,18 +278,27 @@ func getTargetNodeName(workspace *common.DevWorkspaceWithConfig, clusterAPI sync
 		return "", err
 	}
 
-	return getNodeNameWithPVC(found, workspace.Config.Workspace.PVCName), nil
-}
-
-func getNodeNameWithPVC(list *corev1.PodList, pvcName string) string {
-	for _, pod := range list.Items {
-		if pod.Status.Phase == corev1.PodRunning {
+	jobName := common.PVCCleanupJobName(workspace.Status.DevWorkspaceId)
+	pvcName := workspace.Config.Workspace.PVCName
+	for _, pod := range found.Items {
+		if pod.Status.Phase == corev1.PodRunning && !ownedByJob(&pod, jobName) {
 			for _, volume := range pod.Spec.Volumes {
 				if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvcName {
-					return pod.Spec.NodeName
+					return pod.Spec.NodeName, nil
 				}
 			}
 		}
 	}
-	return ""
+	return "", nil
+}
+
+func ownedByJob(pod *corev1.Pod, jobName string) bool {
+	if pod.OwnerReferences != nil {
+		for _, ownerRef := range pod.OwnerReferences {
+			if ownerRef.Kind == "Job" && ownerRef.Name == jobName {
+				return true
+			}
+		}
+	}
+	return false
 }
