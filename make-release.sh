@@ -324,7 +324,14 @@ release() {
   update_images "$NEXT_VERSION_Z"
   git_commit_and_push "chore: release: bump to ${NEXT_VERSION_Z} in $X_BRANCH" "ci-bump-$X_BRANCH-$NEXT_VERSION_Z"
 
+  # Add bundle to main branch
+  git checkout "${MAIN_BRANCH}"
+  git checkout "${X_BRANCH}" -- olm-catalog/release/channel.yaml
+  git checkout "${X_BRANCH}" -- olm-catalog/release/devworkspace-operator.v$VERSION.bundle.yaml
+  git_commit_and_push "chore: Add v${VERSION} bundle to main branch" "ci-add-bundle-$VERSION"
+
   echo "[INFO] Release is done"
+
 }
 
 parse_args "$@"
