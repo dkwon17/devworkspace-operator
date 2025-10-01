@@ -16,12 +16,12 @@
 
 
 set -e
-DWO_REPO="${DWO_REPO:-git@github.com:devfile/devworkspace-operator}"
-DWO_QUAY_REPO="${DWO_QUAY_REPO:-quay.io/devfile/devworkspace-controller}"
-PROJECT_CLONE_QUAY_REPO="${PROJECT_CLONE_QUAY_REPO:-quay.io/devfile/project-clone}"
-DWO_BUNDLE_QUAY_REPO="${DWO_BUNDLE_QUAY_REPO:-quay.io/devfile/devworkspace-operator-bundle}"
-DWO_INDEX_IMAGE="${DWO_INDEX_IMAGE:-quay.io/devfile/devworkspace-operator-index:release}"
-DWO_DIGEST_INDEX_IMAGE="${DWO_DIGEST_INDEX_IMAGE:-quay.io/devfile/devworkspace-operator-index:release-digest}"
+DWO_REPO="${DWO_REPO:-git@github.com:dkwon17/devworkspace-operator}"
+DWO_QUAY_REPO="${DWO_QUAY_REPO:-quay.io/dkwon17/devworkspace-controller}"
+PROJECT_CLONE_QUAY_REPO="${PROJECT_CLONE_QUAY_REPO:-quay.io/dkwon17/project-clone}"
+DWO_BUNDLE_QUAY_REPO="${DWO_BUNDLE_QUAY_REPO:-quay.io/dkwon17/devworkspace-operator-bundle}"
+DWO_INDEX_IMAGE="${DWO_INDEX_IMAGE:-quay.io/dkwon17/devworkspace-operator-index:release}"
+DWO_DIGEST_INDEX_IMAGE="${DWO_DIGEST_INDEX_IMAGE:-quay.io/devfildkwon17/devworkspace-operator-index:release-digest}"
 MAIN_BRANCH="main"
 ARCHITECTURES="linux/amd64,linux/arm64,linux/ppc64le,linux/s390x"
 VERBOSE=""
@@ -131,15 +131,15 @@ update_images() {
 
   # Update defaults in Makefile
   sed -i Makefile -r \
-    -e "s|quay.io/devfile/devworkspace-controller:[0-9a-zA-Z._-]+|${DWO_QUAY_IMG}|g" \
-    -e "s|quay.io/devfile/project-clone:[0-9a-zA-Z._-]+|${PROJECT_CLONE_QUAY_IMG}|g" \
-    -e "s|quay.io/devfile/devworkspace-operator-bundle:[0-9a-zA-Z._-]+|${DWO_BUNDLE_QUAY_IMG}|g" \
-    -e "s|quay.io/devfile/devworkspace-operator-index:[0-9a-zA-Z._-]+|${DWO_INDEX_IMAGE}|g"
+    -e "s|quay.io/dkwon17/devworkspace-controller:[0-9a-zA-Z._-]+|${DWO_QUAY_IMG}|g" \
+    -e "s|quay.io/dkwon17/project-clone:[0-9a-zA-Z._-]+|${PROJECT_CLONE_QUAY_IMG}|g" \
+    -e "s|quay.io/dkwon17/devworkspace-operator-bundle:[0-9a-zA-Z._-]+|${DWO_BUNDLE_QUAY_IMG}|g" \
+    -e "s|quay.io/dkwon17/devworkspace-operator-index:[0-9a-zA-Z._-]+|${DWO_INDEX_IMAGE}|g"
 
   # Update defaults in generate_deployment.sh
   sed -i build/scripts/generate_deployment.sh -r \
-    -e "s|quay.io/devfile/devworkspace-controller:[0-9a-zA-Z._-]+|${DWO_QUAY_IMG}|g" \
-    -e "s|quay.io/devfile/project-clone:[0-9a-zA-Z._-]+|${PROJECT_CLONE_QUAY_IMG}|g"
+    -e "s|quay.io/dkwon17/devworkspace-controller:[0-9a-zA-Z._-]+|${DWO_QUAY_IMG}|g" \
+    -e "s|quay.io/dkwon17/project-clone:[0-9a-zA-Z._-]+|${PROJECT_CLONE_QUAY_IMG}|g"
 
   local DEFAULT_DWO_IMG="$DWO_QUAY_IMG"
   local PROJECT_CLONE_IMG="$PROJECT_CLONE_QUAY_IMG"
@@ -331,7 +331,6 @@ release() {
   git_commit_and_push "chore: Add v${VERSION} bundle to main branch" "ci-add-bundle-$VERSION"
 
   echo "[INFO] Release is done"
-
 }
 
 parse_args "$@"
