@@ -9,10 +9,10 @@ ARCH="amd64"
 ARCHITECTURES="linux/amd64,linux/arm64,linux/ppc64le,linux/s390x"
 DEBUG="false"
 
-DEFAULT_BUNDLE_REPO="quay.io/devfile/devworkspace-operator-bundle"
+DEFAULT_BUNDLE_REPO="quay.io/dkwon17/devworkspace-operator-bundle"
 DEFAULT_BUNDLE_TAG="next"
-DEFAULT_INDEX_IMAGE="quay.io/devfile/devworkspace-operator-index:next"
-DEFAULT_RELEASE_INDEX_IMAGE="quay.io/devfile/devworkspace-operator-index:release"
+DEFAULT_INDEX_IMAGE="quay.io/dkwon17/devworkspace-operator-index:next"
+DEFAULT_RELEASE_INDEX_IMAGE="quay.io/dkwon17/devworkspace-operator-index:release"
 DEFAULT_BUILDER_NAME="dwo-multi-platform-builder"
 
 error() {
@@ -121,10 +121,10 @@ fi
 BUNDLE_IMAGE="${BUNDLE_REPO}:${BUNDLE_TAG}"
 
 # Check we're not accidentally pushing to the DWO repos
-if [ "$BUNDLE_REPO" == "quay.io/devfile/devworkspace-operator-bundle" ] && [ "$FORCE" != "true" ]; then
+if [ "$BUNDLE_REPO" == "quay.io/dkwon17/devworkspace-operator-bundle" ] && [ "$FORCE" != "true" ]; then
   echo -n "Are you sure you want to push $BUNDLE_IMAGE? [y/N] " && read -r ans && [ "${ans:-N}" = y ] || exit 1
 fi
-if [ "$INDEX_IMAGE" == "quay.io/devfile/devworkspace-operator-index" ] && [ "$FORCE" != "true" ]; then
+if [ "$INDEX_IMAGE" == "quay.io/dkwon17/devworkspace-operator-index" ] && [ "$FORCE" != "true" ]; then
   echo -n "Are you sure you want to push $INDEX_IMAGE? [y/N] " && read -r ans && [ "${ans:-N}" = y ] || exit 1
 fi
 

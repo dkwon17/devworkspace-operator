@@ -116,8 +116,8 @@ done
 if $USE_DEFAULT_ENV; then
   echo "Using defaults for environment variables"
   export NAMESPACE=devworkspace-controller
-  export DWO_IMG=${DEFAULT_DWO_IMG:-"quay.io/devfile/devworkspace-controller:next"}
-  export PROJECT_CLONE_IMG=${PROJECT_CLONE_IMG:-"quay.io/devfile/project-clone:next"}
+  export DWO_IMG=${DEFAULT_DWO_IMG:-"quay.io/dkwon17/devworkspace-controller:next"}
+  export PROJECT_CLONE_IMG=${PROJECT_CLONE_IMG:-"quay.io/dkwon17/project-clone:next"}
   export PULL_POLICY=Always
   export DEFAULT_ROUTING=basic
   export DEVWORKSPACE_API_VERSION=a6ec0a38307b63a29fad2eea945cc69bee97a683
