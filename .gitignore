@@ -5,7 +5,8 @@ deploy/templates/crd/bases/devfile_version
 deploy/current
 deploy/deployment/olm
 generated
-.vscode
+.vscode/*
+!.vscode/extensions.json
 __debug_bin
 
 # Ignore cached kustomize for makefile
