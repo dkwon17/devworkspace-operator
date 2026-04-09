@@ -4720,6 +4720,15 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      retries:
+                        description: |-
+                          Retries defines the number of times the project clone operation will be retried
+                          if it fails. Independent connection attempts are more resilient to temporary
+                          network disruptions. If not specified, the default value of 2 is used (3 total
+                          attempts). Set to 0 to disable retries.
+                        format: int32
+                        minimum: 0
+                        type: integer
                     type: object
                   pvcName:
                     description: |-

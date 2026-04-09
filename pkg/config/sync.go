@@ -397,6 +397,9 @@ func mergeConfig(from, to *controller.OperatorConfiguration) {
 			if from.Workspace.ProjectCloneConfig.Env != nil {
 				to.Workspace.ProjectCloneConfig.Env = from.Workspace.ProjectCloneConfig.Env
 			}
+			if from.Workspace.ProjectCloneConfig.Retries != nil {
+				to.Workspace.ProjectCloneConfig.Retries = from.Workspace.ProjectCloneConfig.Retries
+			}
 		}
 		if from.Workspace.RestoreConfig != nil {
 			if to.Workspace.RestoreConfig == nil {
@@ -729,6 +732,9 @@ func GetCurrentConfigString(currConfig *controller.OperatorConfiguration) string
 			}
 			if !reflect.DeepEqual(workspace.ProjectCloneConfig.Resources, defaultConfig.Workspace.ProjectCloneConfig.Resources) {
 				config = append(config, "workspace.projectClone.resources is set")
+			}
+			if workspace.ProjectCloneConfig.Retries != nil && *workspace.ProjectCloneConfig.Retries != *defaultConfig.Workspace.ProjectCloneConfig.Retries {
+				config = append(config, fmt.Sprintf("workspace.projectClone.retries=%d", *workspace.ProjectCloneConfig.Retries))
 			}
 		}
 		if !reflect.DeepEqual(workspace.DefaultContainerResources, defaultConfig.Workspace.DefaultContainerResources) {

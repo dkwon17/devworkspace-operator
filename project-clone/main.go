@@ -23,8 +23,11 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"syscall"
+	"time"
 
+	dw "github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
 	projectslib "github.com/devfile/devworkspace-operator/pkg/library/projects"
 	"github.com/devfile/devworkspace-operator/project-clone/internal"
 	"github.com/devfile/devworkspace-operator/project-clone/internal/bootstrap"
@@ -95,19 +98,33 @@ func main() {
 		gitclient.InstallProtocol("https", githttp.NewClient(httpClient))
 	}
 
+	maxRetries := getRetries()
 	encounteredError := false
 	for _, project := range projects {
 		log.Printf("Processing project %s", project.Name)
 		var err error
-		switch {
-		case project.Git != nil:
-			err = git.SetupGitProject(project)
-		case project.Zip != nil:
-			err = zip.SetupZipProject(project, httpClient)
-		default:
-			log.Printf("Project does not specify Git or Zip source")
-			copyLogFileToProjectsRoot()
-			os.Exit(0)
+		for attempt := 0; attempt <= maxRetries; attempt++ {
+			if attempt > 0 {
+				log.Printf("Retrying project %s (attempt %d/%d) after 5s delay", project.Name, attempt+1, maxRetries+1)
+				time.Sleep(5 * time.Second)
+				cleanupPartialClone(project)
+			}
+			switch {
+			case project.Git != nil:
+				err = git.SetupGitProject(project)
+			case project.Zip != nil:
+				err = zip.SetupZipProject(project, httpClient)
+			default:
+				log.Printf("Project does not specify Git or Zip source")
+				copyLogFileToProjectsRoot()
+				os.Exit(0)
+			}
+			if err == nil {
+				break
+			}
+			if attempt < maxRetries {
+				log.Printf("Attempt %d/%d failed for project %s: %s", attempt+1, maxRetries+1, project.Name, err)
+			}
 		}
 		if err != nil {
 			log.Printf("Encountered error while setting up project %s: %s", project.Name, err)
@@ -128,6 +145,31 @@ func main() {
 			log.Printf("Encountered error setting up DevWorkspace from devfile: %s", err)
 			copyLogFileToProjectsRoot()
 		}
+	}
+}
+
+// getRetries reads the PROJECT_CLONE_RETRIES environment variable and returns the number of
+// retries to attempt for project clone operations. Returns 0 if the variable is not set or invalid.
+func getRetries() int {
+	retriesStr := os.Getenv("PROJECT_CLONE_RETRIES")
+	if retriesStr == "" {
+		return 0
+	}
+	retries, err := strconv.Atoi(retriesStr)
+	if err != nil || retries < 0 {
+		log.Printf("Invalid value for PROJECT_CLONE_RETRIES: %s, defaulting to 0", retriesStr)
+		return 0
+	}
+	return retries
+}
+
+// cleanupPartialClone removes any partial clone state from the temp directory for a project,
+// allowing a fresh retry attempt.
+func cleanupPartialClone(project dw.Project) {
+	clonePath := projectslib.GetClonePath(&project)
+	tmpPath := path.Join(internal.CloneTmpDir, clonePath)
+	if err := os.RemoveAll(tmpPath); err != nil {
+		log.Printf("Warning: failed to clean up partial clone at %s: %s", tmpPath, err)
 	}
 }
 

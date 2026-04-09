@@ -45,4 +45,8 @@ const (
 	DevWorkspaceComponentName = "DEVWORKSPACE_COMPONENT_NAME"
 	DISPLAY                   = "DISPLAY"
 	SSHAskPass                = "SSH_ASKPASS"
+
+	// ProjectCloneRetries contains the env var name whose value specifies the number of
+	// times to retry project clone operations on failure
+	ProjectCloneRetries = "PROJECT_CLONE_RETRIES"
 )

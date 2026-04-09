@@ -383,6 +383,12 @@ type ProjectCloneConfig struct {
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 	// Env allows defining additional environment variables for the project clone container.
 	Env []corev1.EnvVar `json:"env,omitempty"`
+	// Retries defines the number of times the project clone operation will be retried
+	// if it fails. Independent connection attempts are more resilient to temporary
+	// network disruptions. If not specified, the default value of 2 is used (3 total
+	// attempts). Set to 0 to disable retries.
+	// +kubebuilder:validation:Minimum=0
+	Retries *int32 `json:"retries,omitempty"`
 }
 
 type RestoreConfig struct {

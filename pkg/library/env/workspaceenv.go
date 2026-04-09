@@ -18,6 +18,7 @@ package env
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	dw "github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
 	"github.com/devfile/devworkspace-operator/apis/controller/v1alpha1"
@@ -76,6 +77,12 @@ func GetEnvironmentVariablesForProjectClone(workspace *common.DevWorkspaceWithCo
 		Name:  devfileConstants.ProjectsRootEnvVar,
 		Value: constants.DefaultProjectsSourcesRoot,
 	})
+	if workspace.Config.Workspace.ProjectCloneConfig.Retries != nil {
+		cloneEnv = append(cloneEnv, corev1.EnvVar{
+			Name:  constants.ProjectCloneRetries,
+			Value: strconv.Itoa(int(*workspace.Config.Workspace.ProjectCloneConfig.Retries)),
+		})
+	}
 	return cloneEnv
 }
 
