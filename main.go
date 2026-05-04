@@ -30,6 +30,7 @@ import (
 	"github.com/devfile/devworkspace-operator/pkg/config"
 	"github.com/devfile/devworkspace-operator/pkg/infrastructure"
 	kubesync "github.com/devfile/devworkspace-operator/pkg/library/kubernetes"
+	tlsutil "github.com/devfile/devworkspace-operator/pkg/tls"
 	"github.com/devfile/devworkspace-operator/pkg/webhook"
 	"github.com/devfile/devworkspace-operator/version"
 
@@ -122,15 +123,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	bootstrapClient, err := client.New(restConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		setupLog.Error(err, "unable to create bootstrap client for cluster config")
+		os.Exit(1)
+	}
+	tlsOpts := tlsutil.GetClusterTLSOpts(context.Background(), bootstrapClient)
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:    metricsAddr,
 			FilterProvider: filters.WithAuthenticationAndAuthorization,
 			SecureServing:  true,
+			TLSOpts:        tlsOpts,
 		},
 		WebhookServer: ctrl_webhook.NewServer(ctrl_webhook.Options{
-			Port: 9443,
+			Port:    9443,
+			TLSOpts: tlsOpts,
 		}),
 		HealthProbeBindAddress: ":6789",
 		LeaderElection:         enableLeaderElection,

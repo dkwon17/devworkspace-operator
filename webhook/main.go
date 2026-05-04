@@ -34,14 +34,17 @@ import (
 	"github.com/devfile/devworkspace-operator/pkg/cache"
 	"github.com/devfile/devworkspace-operator/pkg/config"
 	"github.com/devfile/devworkspace-operator/pkg/infrastructure"
+	tlsutil "github.com/devfile/devworkspace-operator/pkg/tls"
 	"github.com/devfile/devworkspace-operator/version"
 	"github.com/devfile/devworkspace-operator/webhook/server"
 	"github.com/devfile/devworkspace-operator/webhook/workspace"
 
+	configv1 "github.com/openshift/api/config/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	clientconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -66,6 +69,10 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(dwv1.AddToScheme(scheme))
 	utilruntime.Must(dwv2.AddToScheme(scheme))
+
+	if infrastructure.IsOpenShift() {
+		utilruntime.Must(configv1.AddToScheme(scheme))
+	}
 }
 
 func main() {
@@ -101,10 +108,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	bootstrapClient, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		log.Error(err, "unable to create bootstrap client for cluster config")
+		os.Exit(1)
+	}
+	tlsOpts := tlsutil.GetClusterTLSOpts(context.Background(), bootstrapClient)
+
 	webhookServer := webhook.NewServer(webhook.Options{
 		CertDir: server.WebhookServerCertDir,
 		Port:    server.WebhookServerPort,
 		Host:    server.WebhookServerHost,
+		TLSOpts: tlsOpts,
 	})
 
 	// Create a new Cmd to provide shared dependencies and start components
@@ -114,6 +129,7 @@ func main() {
 			BindAddress:    metricsAddr,
 			FilterProvider: filters.WithAuthenticationAndAuthorization,
 			SecureServing:  true,
+			TLSOpts:        tlsOpts,
 		},
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: ":6789",
