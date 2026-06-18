@@ -1,0 +1,121 @@
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: nested-clonepath-test
+  labels:
+    app.kubernetes.io/name: devworkspace-project-clone-tests
+    app.kubernetes.io/part-of: devworkspace-operator
+  annotations:
+    controller.devfile.io/debug-start: "true"
+spec:
+  started: true
+  routingClass: 'basic'
+  template:
+    attributes:
+      controller.devfile.io/storage-type: ephemeral
+    variables:
+      test_runner_image: quay.io/devfile/project-clone:next # Requires git, bash
+      devfile_repo: https://github.com/devfile/api.git
+      devworkspace_repo: https://github.com/devfile/devworkspace-operator.git
+    projects:
+      - name: devfile-rest
+        clonePath: back/devfile-rest
+        git:
+          remotes:
+            origin: "{{devfile_repo}}"
+      - name: devworkspace-rest
+        clonePath: back/devworkspace-rest
+        git:
+          remotes:
+            origin: "{{devworkspace_repo}}"
+      - name: devfile-ui
+        clonePath: ui/devfile-ui
+        git:
+          remotes:
+            origin: "{{devfile_repo}}"
+      - name: devworkspace-ui
+        clonePath: ui/devworkspace-ui
+        git:
+          remotes:
+            origin: "{{devworkspace_repo}}"
+    components:
+      - name: test-nested-clonepath
+        container:
+          image: "{{test_runner_image}}"
+          memoryLimit: 512Mi
+          mountSources: true
+          command:
+            - "/bin/bash"
+            - "-c"
+            - |
+              set -e
+
+              fail() {
+                echo "[ERROR] $1"
+                echo "[ERROR] See project-clone logs: "
+                echo "[ERROR]    oc logs -n $DEVWORKSPACE_NAMESPACE deploy/$DEVWORKSPACE_ID -c project-clone"
+                exit 1
+              }
+
+              if [ -f "${PROJECTS_ROOT}/project-clone-errors.log" ]; then
+                echo "==== BEGIN PROJECT CLONE LOGS ===="
+                sed 's/^/    /g' "${PROJECTS_ROOT}/project-clone-errors.log"
+                echo "====  END PROJECT CLONE LOGS  ===="
+                echo -e "\n\n"
+              fi
+
+              echo "Testing nested clonePath structure"
+
+              # Verify directory structure is created correctly
+              if [ ! -d "${PROJECTS_ROOT}/back" ]; then
+                fail "Intermediate directory 'back' was not created"
+              fi
+
+              if [ ! -d "${PROJECTS_ROOT}/ui" ]; then
+                fail "Intermediate directory 'ui' was not created"
+              fi
+
+              # Verify all projects were cloned to their nested paths
+              for project_dir in "back/devfile-rest" "back/devworkspace-rest" "ui/devfile-ui" "ui/devworkspace-ui"; do
+                if [ ! -d "${PROJECTS_ROOT}/${project_dir}" ]; then
+                  fail "Project $project_dir not cloned successfully"
+                fi
+                if [ ! -d "${PROJECTS_ROOT}/${project_dir}/.git" ]; then
+                  fail "Project $project_dir is not a valid git repository"
+                fi
+              done
+
+              echo "Testing project in back/devfile-rest"
+              cd "${PROJECTS_ROOT}/back/devfile-rest"
+              remote_url=$(git config remote.origin.url)
+              if [[ "$remote_url" != *"devfile/api"* ]]; then
+                fail "Project back/devfile-rest does not have correct remote configured"
+              fi
+              echo "Project back/devfile-rest: remote configured correctly"
+
+              echo "Testing project in back/devworkspace-rest"
+              cd "${PROJECTS_ROOT}/back/devworkspace-rest"
+              remote_url=$(git config remote.origin.url)
+              if [[ "$remote_url" != *"devfile/devworkspace-operator"* ]]; then
+                fail "Project back/devworkspace-rest does not have correct remote configured"
+              fi
+              echo "Project back/devworkspace-rest: remote configured correctly"
+
+              echo "Testing project in ui/devfile-ui"
+              cd "${PROJECTS_ROOT}/ui/devfile-ui"
+              remote_url=$(git config remote.origin.url)
+              if [[ "$remote_url" != *"devfile/api"* ]]; then
+                fail "Project ui/devfile-ui does not have correct remote configured"
+              fi
+              echo "Project ui/devfile-ui: remote configured correctly"
+
+              echo "Testing project in ui/devworkspace-ui"
+              cd "${PROJECTS_ROOT}/ui/devworkspace-ui"
+              remote_url=$(git config remote.origin.url)
+              if [[ "$remote_url" != *"devfile/devworkspace-operator"* ]]; then
+                fail "Project ui/devworkspace-ui does not have correct remote configured"
+              fi
+              echo "Project ui/devworkspace-ui: remote configured correctly"
+
+              echo "[SUCCESS] All nested clonePath projects cloned successfully. Sleeping indefinitely"
+              tail -f /dev/null

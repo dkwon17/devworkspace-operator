@@ -130,12 +130,20 @@ func copyProjectFromTmpDir(project *dw.Project, tmpClonePath string) error {
 		subDirPath := path.Join(tmpClonePath, subDirSubPath)
 		projectPath := path.Join(internal.ProjectsRoot, projectslib.GetClonePath(project))
 		log.Printf("Moving subdirectory %s in project %s from temporary directory to %s", subDirSubPath, project.Name, projectPath)
+		// Create parent directories if they don't exist (e.g., for nested clonePath like "back/devfile-rest")
+		if err := os.MkdirAll(path.Dir(projectPath), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directories for %s: %w", projectPath, err)
+		}
 		if err := os.Rename(subDirPath, projectPath); err != nil {
 			return fmt.Errorf("failed to move subdirectory of cloned project to %s: %w", internal.ProjectsRoot, err)
 		}
 	} else {
 		projectPath := path.Join(internal.ProjectsRoot, projectslib.GetClonePath(project))
 		log.Printf("Moving cloned project %s from temporary directory %s to %s", project.Name, tmpClonePath, projectPath)
+		// Create parent directories if they don't exist (e.g., for nested clonePath like "back/devfile-rest")
+		if err := os.MkdirAll(path.Dir(projectPath), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directories for %s: %w", projectPath, err)
+		}
 		if err := os.Rename(tmpClonePath, projectPath); err != nil {
 			return fmt.Errorf("failed to move cloned project to %s: %w", internal.ProjectsRoot, err)
 		}

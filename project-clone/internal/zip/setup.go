@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2025 Red Hat, Inc.
+// Copyright (c) 2019-2026 Red Hat, Inc.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -68,6 +68,10 @@ func SetupZipProject(project v1alpha2.Project, httpClient *http.Client) error {
 
 	// Move unzipped project from tmp dir to final destination
 	log.Printf("Moving extracted project archive to %s", projectPath)
+	// Create parent directories if they don't exist (e.g., for nested clonePath like "back/devfile-rest")
+	if err := os.MkdirAll(path.Dir(projectPath), 0755); err != nil {
+		return fmt.Errorf("failed to create parent directories for %s: %w", projectPath, err)
+	}
 	if err := os.Rename(tmpProjectsPath, projectPath); err != nil {
 		return fmt.Errorf("failed to move unzipped project to PROJECTS_ROOT: %w", err)
 	}
