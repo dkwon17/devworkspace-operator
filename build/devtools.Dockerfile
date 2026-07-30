@@ -32,6 +32,9 @@ RUN curl -sSLO ${OPERATOR_SDK_DL_URL}/operator-sdk_linux_amd64 && \
     mv operator-sdk_linux_amd64 /usr/local/bin/operator-sdk && \
     rm checksums.txt checksums.txt.asc
 
+# Install pre-commit
+RUN /usr/bin/pip install pre-commit
+
 # Install opm CLI
 ENV OPM_VERSION="v1.19.5"
 RUN curl -sSLO https://github.com/operator-framework/operator-registry/releases/download/${OPM_VERSION}/linux-amd64-opm && \

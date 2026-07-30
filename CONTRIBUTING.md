@@ -13,6 +13,32 @@ Before contributing to this repository for the first time, please review our pro
 - Open or search for [issues](https://github.com/devfile/devworkspace-operator/issues).
 - If a related issue doesn't exist, you can open a new issue using a relevant [issue form](https://github.com/devfile/devworkspace-operator/issues/new/choose).
 
+### Pre-commit Hooks
+
+This repository uses [pre-commit](https://pre-commit.com/) to run checks before each commit. Currently, it is configured to run [detect-secrets](https://github.com/Yelp/detect-secrets) to prevent secrets from being committed to the repository.
+
+1. Install pre-commit:
+
+    ```bash
+    # macOS
+    brew install pre-commit
+
+    # or with pip
+    pip install pre-commit
+    ```
+
+2. Install the git hook in your local clone:
+
+    ```bash
+    pre-commit install
+    ```
+
+Once installed, the hooks will run automatically on `git commit`. To run the hooks manually against all files:
+
+```bash
+pre-commit run --all-files
+```
+
 ### Pull Requests
 
 All commits must be signed off with the footer:
