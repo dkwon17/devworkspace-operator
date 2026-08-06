@@ -46,7 +46,7 @@ ATTEMPT_LOG="${ARTIFACT_DIR}/attempt-log.txt"
 
 deployDWO() {
   echo "======== Deploying DevWorkspace Operator ========"
-  export NAMESPACE="devworkspace-controller"
+  export NAMESPACE="openshift-operators"
   export DWO_IMG="${DEVWORKSPACE_OPERATOR}"
 
   if ! make install; then
