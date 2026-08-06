@@ -18,8 +18,18 @@ name: DevWorkspace Operator CodeQL scan
 on:
   push:
     branches: [ main ]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [ main ]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '15 7 * * 1'
 
@@ -45,7 +55,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
+      with:
+        persist-credentials: false
     - name: Set up Go 1.x
       uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
@@ -64,8 +75,7 @@ jobs:
         make manager
         make compile-devworkspace-controller
         make compile-webhook-server
-    -
-      name: Perform CodeQL Analysis
+    - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
       with:
         category: "/language:${{matrix.language}}"
