@@ -57,6 +57,7 @@ var defaultConfig = &v1alpha1.OperatorConfiguration{
 		ContainerSecurityContext: nil, // Set per-platform in setDefaultContainerSecurityContext()
 		DefaultTemplate:          nil,
 		ProjectCloneConfig: &v1alpha1.ProjectCloneConfig{
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Resources: &corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -69,6 +70,7 @@ var defaultConfig = &v1alpha1.OperatorConfiguration{
 			},
 		},
 		RestoreConfig: &v1alpha1.RestoreConfig{
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Resources: &corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceMemory: resource.MustParse("1Gi"),

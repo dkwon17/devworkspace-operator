@@ -361,10 +361,10 @@ func (r *DevWorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			Env:       env.GetEnvironmentVariablesForProjectRestore(workspace),
 			Resources: workspace.Config.Workspace.RestoreConfig.Resources,
 		}
-		if config.Workspace.ImagePullPolicy != "" {
-			restoreOptions.PullPolicy = corev1.PullPolicy(config.Workspace.ImagePullPolicy)
+		if config.Workspace.RestoreConfig.ImagePullPolicy != "" {
+			restoreOptions.PullPolicy = config.Workspace.RestoreConfig.ImagePullPolicy
 		} else {
-			restoreOptions.PullPolicy = corev1.PullIfNotPresent
+			restoreOptions.PullPolicy = corev1.PullPolicy(config.Workspace.ImagePullPolicy)
 		}
 		if workspaceRestore, registryAuthSecret, err := restore.GetWorkspaceRestoreInitContainer(ctx, workspace, r.Client, restoreOptions, r.Scheme, reqLogger); err != nil {
 			return r.failWorkspace(workspace, fmt.Sprintf("Failed to set up workspace-restore init container: %s", err), metrics.ReasonInfrastructureFailure, reqLogger, &reconcileStatus), nil
@@ -423,6 +423,9 @@ func (r *DevWorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					reqLogger.Info("Skipping init-persistent-home container: DisableInitContainer is true")
 					continue
 				}
+			}
+			if container.ImagePullPolicy == "" {
+				container.ImagePullPolicy = corev1.PullIfNotPresent
 			}
 			patches = append(patches, container)
 		}
