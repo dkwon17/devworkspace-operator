@@ -22,21 +22,8 @@ import (
 	"os"
 	"runtime"
 
-	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
-
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
 	dwv1 "github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha1"
 	dwv2 "github.com/devfile/api/v2/pkg/apis/workspaces/v1alpha2"
-	"github.com/devfile/devworkspace-operator/pkg/cache"
-	"github.com/devfile/devworkspace-operator/pkg/config"
-	"github.com/devfile/devworkspace-operator/pkg/infrastructure"
-	"github.com/devfile/devworkspace-operator/pkg/tlssetup"
-	"github.com/devfile/devworkspace-operator/version"
-	"github.com/devfile/devworkspace-operator/webhook/server"
-	"github.com/devfile/devworkspace-operator/webhook/workspace"
-
 	configv1 "github.com/openshift/api/config/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -48,6 +35,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/devfile/devworkspace-operator/pkg/cache"
+	"github.com/devfile/devworkspace-operator/pkg/config"
+	"github.com/devfile/devworkspace-operator/pkg/infrastructure"
+	"github.com/devfile/devworkspace-operator/pkg/tlssetup"
+	"github.com/devfile/devworkspace-operator/version"
+	"github.com/devfile/devworkspace-operator/webhook/server"
+	"github.com/devfile/devworkspace-operator/webhook/workspace"
 )
 
 var (
