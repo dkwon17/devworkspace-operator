@@ -37,6 +37,7 @@ import (
 	"github.com/devfile/devworkspace-operator/webhook/server"
 	"github.com/devfile/devworkspace-operator/webhook/workspace"
 
+	configv1 "github.com/openshift/api/config/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -65,6 +66,10 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(dwv1.AddToScheme(scheme))
 	utilruntime.Must(dwv2.AddToScheme(scheme))
+
+	if infrastructure.IsOpenShift() {
+		utilruntime.Must(configv1.AddToScheme(scheme))
+	}
 }
 
 func main() {
@@ -89,7 +94,7 @@ func main() {
 	}
 
 	serverTLS := tlssetup.BuildServerTLSOptions(
-		context.Background(), cfg, scheme, log)
+		context.Background(), cfg, scheme, log, nil)
 
 	namespace, err := infrastructure.GetWatchNamespace()
 	if err != nil {
