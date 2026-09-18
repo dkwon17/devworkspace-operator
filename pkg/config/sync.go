@@ -522,6 +522,15 @@ func mergeConfig(from, to *controller.OperatorConfiguration) {
 				to.Workspace.Overrides.RestrictedPodOverrideFields = from.Workspace.Overrides.RestrictedPodOverrideFields
 			}
 		}
+
+		if from.Workspace.Deployment != nil {
+			if to.Workspace.Deployment == nil {
+				to.Workspace.Deployment = &controller.DeploymentConfig{}
+			}
+			if from.Workspace.Deployment.ToleratedLabels != nil {
+				to.Workspace.Deployment.ToleratedLabels = from.Workspace.Deployment.ToleratedLabels
+			}
+		}
 	}
 }
 
@@ -800,6 +809,9 @@ func GetCurrentConfigString(currConfig *controller.OperatorConfiguration) string
 			if workspace.Overrides.RestrictedPodOverrideFields != nil {
 				config = append(config, fmt.Sprintf("workspace.overrides.restrictedPodOverrideFields=[%s]", strings.Join(workspace.Overrides.RestrictedPodOverrideFields, ", ")))
 			}
+		}
+		if workspace.Deployment != nil && len(workspace.Deployment.ToleratedLabels) > 0 {
+			config = append(config, fmt.Sprintf("workspace.deployment.toleratedLabels=[%s]", strings.Join(workspace.Deployment.ToleratedLabels, ", ")))
 		}
 		if len(workspace.InitContainers) > 0 {
 			initContainerNames := make([]string, len(workspace.InitContainers))

@@ -2631,6 +2631,20 @@ spec:
                            - string enums, e.g. command group kind, endpoint exposure
                         type: object
                     type: object
+                  deployment:
+                    description: Deployment defines configuration options for the
+                      workspace Deployment object.
+                    properties:
+                      toleratedLabels:
+                        description: |-
+                          ToleratedLabels defines a list of label keys that should be preserved on
+                          DWO-managed Deployment resources when added by external systems (e.g. admission
+                          webhooks, label controllers). Supports exact keys (e.g. "paas.redhat.com/appcode")
+                          and wildcard prefixes (e.g. "paas.redhat.com/*").
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   deploymentStrategy:
                     description: |-
                       DeploymentStrategy defines the deployment strategy to use to replace existing DevWorkspace pods

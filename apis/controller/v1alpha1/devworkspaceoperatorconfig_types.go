@@ -285,6 +285,18 @@ type WorkspaceConfig struct {
 	// Overrides defines configuration options for `container-overrides` and
 	// `pod-overrides` DevWorkspace attributes.
 	Overrides *OverrideConfig `json:"overrides,omitempty"`
+	// Deployment defines configuration options for the workspace Deployment object.
+	// +kubebuilder:validation:Optional
+	Deployment *DeploymentConfig `json:"deployment,omitempty"`
+}
+
+// DeploymentConfig defines configuration options for workspace Deployment objects.
+type DeploymentConfig struct {
+	// ToleratedLabels defines a list of label keys that should be preserved on
+	// DWO-managed Deployment metadata and Pod template metadata. Supports exact keys
+	// and wildcard prefixes (e.g. "example.com/*").
+	// +kubebuilder:validation:Optional
+	ToleratedLabels []string `json:"toleratedLabels,omitempty"`
 }
 
 type WebhookConfig struct {

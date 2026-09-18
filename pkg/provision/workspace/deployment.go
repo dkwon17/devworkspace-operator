@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/devfile/devworkspace-operator/pkg/dwerrors"
@@ -64,6 +65,8 @@ func SyncDeploymentToCluster(
 		// DevWorkspace defines no container components, cannot create a deployment
 		return nil
 	}
+
+	preserveToleratedMetadata(specDeployment, workspace.Config, clusterAPI)
 
 	clusterObj, err := sync.SyncObjectWithCluster(specDeployment, clusterAPI)
 	if err != nil {
@@ -395,6 +398,54 @@ func getAdditionalDeploymentAnnotations(workspace *common.DevWorkspaceWithConfig
 	}
 
 	return annotations, nil
+}
+
+// preserveToleratedMetadata copies labels matching the configured
+// workspace.deployment.toleratedLabels patterns from the existing cluster deployment's
+// metadata and pod template metadata into the spec deployment, so they survive the sync update.
+func preserveToleratedMetadata(specDeployment *appsv1.Deployment, config *v1alpha1.OperatorConfiguration, clusterAPI sync.ClusterAPI) {
+	if config.Workspace == nil || config.Workspace.Deployment == nil || len(config.Workspace.Deployment.ToleratedLabels) == 0 {
+		return
+	}
+
+	clusterDeployment := &appsv1.Deployment{}
+	err := clusterAPI.Client.Get(clusterAPI.Ctx, types.NamespacedName{
+		Name:      specDeployment.Name,
+		Namespace: specDeployment.Namespace,
+	}, clusterDeployment)
+	if err != nil {
+		return
+	}
+
+	toleratedLabels := config.Workspace.Deployment.ToleratedLabels
+
+	for k, v := range clusterDeployment.Labels {
+		if _, exists := specDeployment.Labels[k]; !exists && matchesToleratedKey(k, toleratedLabels) {
+			specDeployment.Labels[k] = v
+		}
+	}
+
+	for k, v := range clusterDeployment.Spec.Template.Labels {
+		if _, exists := specDeployment.Spec.Template.Labels[k]; !exists && matchesToleratedKey(k, toleratedLabels) {
+			if specDeployment.Spec.Template.Labels == nil {
+				specDeployment.Spec.Template.Labels = map[string]string{}
+			}
+			specDeployment.Spec.Template.Labels[k] = v
+		}
+	}
+}
+
+func matchesToleratedKey(key string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if prefix, ok := strings.CutSuffix(pattern, "/*"); ok {
+			if strings.HasPrefix(key, prefix+"/") {
+				return true
+			}
+		} else if key == pattern {
+			return true
+		}
+	}
+	return false
 }
 
 func GetClusterDeployment(workspace *common.DevWorkspaceWithConfig, clusterAPI sync.ClusterAPI) (*appsv1.Deployment, error) {
